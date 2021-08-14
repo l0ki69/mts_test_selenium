@@ -1,6 +1,8 @@
 /.env
 /.idea/
+/venv/
 /geckodriver.exe
 /geckodriver.log
-/excel_table/
-/captcha/
+/*.xlsx
+/img.png
+/__pycache__/

@@ -12,7 +12,7 @@ def read_excel(name_table):
     :rtype: list
     """
 
-    wb = excel.Workbooks.Open(Path.cwd() / 'excel table' / name_table)
+    wb = excel.Workbooks.Open(Path.cwd() / name_table)
     sheet = wb.ActiveSheet
 
     num_row: int = 1  # кол-во строк
