@@ -20,9 +20,9 @@ class ProcessingExcel:
         """
 
         with open('table_data.json', 'r', encoding='utf-8') as json_file:
-            data = json.load(json_file)
+            self.data_json = json.load(json_file)
 
-        self.name_table = data[website]['file_input']
+        self.name_table = self.data_json[website]['file_input']
         self.website = website
         self.excel = win32com.client.Dispatch('Excel.Application')
 
@@ -62,9 +62,9 @@ class ProcessingExcel:
         # Над данный момент кол-во столбцов может быть только 3 или 4
         table_range: str = 'A2:'
         if num_column == 3:
-            table_range += 'C' + str(num_row)
+            table_range += 'C' + str(num_row + 1)
         else:
-            table_range += 'D' + str(num_row)
+            table_range += 'D' + str(num_row + 1)
 
         counter: int = 0
         data_row = list()  # Временное хранилище данных по строкам
@@ -91,3 +91,51 @@ class ProcessingExcel:
         wb.Close()
 
         return data_debtors
+
+    def write_excel(self, data):
+        """
+        Writes data to an Excel file.
+        If file with such filename doesn't exist - creates it.
+        Otherwise, it will overwrite the existing
+        Works for as for fssp, as for sudrf
+
+        :param data: data to write
+        :type data: list[tuple]
+        """
+        name_table = self.data_json[self.website]['file_output']
+
+        # Проверка существует ли табилца
+        if Path(Path.cwd() / name_table).is_file():
+            # Да, подключаемся к ней
+            wb = self.excel.Workbooks.Open(Path.cwd() / name_table)
+        else:
+            # Нет, создаем новую
+            wb = self.excel.Workbooks.Add()
+            wb.SaveAs(str(Path.cwd()) + '/' + name_table)
+
+        # Подключаемся к активному листу и очищаем его от старых данных
+        sheet = wb.ActiveSheet
+        sheet.UsedRange.Delete()
+
+        # Узнаем кол-во столбцов по титульнику
+        num_columns: int = len(self.data_json[self.website]['headers'])
+
+        # Заполняем Титульную строку
+        sheet.Range('A1:' + chr(64 + num_columns) + '1').Value = self.data_json[self.website]['headers']
+
+        # Сдвиг по таблице
+        shift_cell: int = 2
+        for element in data:
+
+            if len(element[0]) > 2:
+                # Долги есть
+                sheet.Range('A' + str(shift_cell) + ':' + chr(64 + num_columns)
+                            + str(shift_cell + len(element) - 1)).Value = element
+                shift_cell += len(element)
+            else:
+                # Нет долгов
+                sheet.Range('A' + str(shift_cell) + ':B' + str(shift_cell)).Value = element
+                shift_cell += 1
+
+        wb.Save()
+        wb.Close()

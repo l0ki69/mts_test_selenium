@@ -23,6 +23,7 @@ class Fssp:
         self.browser.quit()
 
     def _restart_session(self):
+        """Restarts the session if something went wrong"""
 
         self.browser.get('http://fssprus.ru/')
 
@@ -41,11 +42,14 @@ class Fssp:
 
     def _introduces_captcha(self):
         """Solves captcha using Tesseract-ocr"""
-        # Ждем появления окна с капчей
+
+        # Проверка наличия капчи на странице.
         try:
-            self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '#ncapcha-submit')))
-        except TimeoutException:
-            self._restart_session()
+            self.browser.find_element_by_css_selector('.popup')
+        except NoSuchElementException:
+            # Капчи нет - мы уже авторизованы.
+            return
+
         while True:
             try:
                 # Делаем скриншот участка с капчей
@@ -74,11 +78,80 @@ class Fssp:
             except StaleElementReferenceException:
                 continue
 
+    def get_data(self, data_debtor: Debtors):
+        """
+        Unloads data about open enforcement proceedings, if any
+
+        :param data_debtor: Information about the potential debtor
+
+        :return: True - If you managed to upload data about the debtor
+                 False - If something went wrong and it's worth starting over
+        :rtype: bool
+        """
+
+        def get_text(element):
+            """Gets the text of the HTML block"""
+            return element.text
+
+        # Debt list
+        debts_data = list()
+
+        for key in data_debtor.__dict__.keys():
+            input_form = self.browser.find_element_by_name(f"is[{key}]")
+            input_form.clear()
+            input_form.send_keys(data_debtor.__getattribute__(key))
+
+        self.browser.find_element_by_id('btn-sbm').click()
+
+        self._introduces_captcha()
+
+        try:
+            res_table = self.browser.find_element_by_css_selector('div.results')
+        except NoSuchElementException:
+            # Что пошло не так, начнем сначала
+            self._restart_session()
+            return False
+
+        # Если нет задолженностей
+        try:
+            res_table.find_element_by_css_selector('div.results-frame').find_element_by_css_selector('tbody')
+        except NoSuchElementException:
+            name: str = data_debtor.last_name + ' ' + data_debtor.first_name + ' ' \
+                        + data_debtor.patronymic + '\n' + data_debtor.date
+            debts_data.append((name, 'Нет задолженностей'))
+            debts.append(debts_data)
+            return True
+
+        # Задолженности есть
+
+        debts_info: list = self.browser.find_element_by_css_selector('div.results').find_element_by_css_selector(
+            'div.results-frame').find_element_by_css_selector('tbody').find_elements_by_tag_name('td')
+
+        # Удаляем каждый информацию из столбика Сервис
+        del debts_info[5:len(debts_info):8]
+        debts_info.pop(0)  # Удаляем 0-й элемент с данными о республике
+
+        # Теперь групируем данные о каждом ОТДЕЛЬНОМ исполнительном производстве
+        for index in range(0, len(debts_info) // 7):
+            temp_stor: list = debts_info[index * 7:index * 7 + 7]
+            debts_data.append(tuple(map(get_text, temp_stor)))
+
+        debts.append(debts_data)
+        return True
+
 
 if __name__ == '__main__':
     session = Fssp()
     excel = ProcessingExcel('fssprus')
 
     data_debtors = excel.read_excel()
+    debts = []
 
+    counter: int = 0
+    while counter != len(data_debtors):
+        if session.get_data(data_debtors[counter]):
+            counter += 1
+        else:
+            continue
 
+    excel.write_excel(debts)
