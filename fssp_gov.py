@@ -6,7 +6,7 @@ from selenium.common.exceptions import NoSuchElementException, \
     ElementNotInteractableException, StaleElementReferenceException, TimeoutException
 
 from captcha import read_captcha
-from excel_interaction import read_excel
+from excel_interaction import Debtors, ProcessingExcel
 
 
 class Fssp:
@@ -24,7 +24,7 @@ class Fssp:
 
     def _restart_session(self):
 
-        self.browser.get('https:// /')
+        self.browser.get('http://fssprus.ru/')
 
         # Закрываем всплывающее окно
         pop_up_window_button = self.wait.until(
@@ -56,14 +56,17 @@ class Fssp:
                     continue
 
                 text = read_captcha()
-                # time.sleep(1)
+                # ВВодим капчу
                 self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '#captcha-popup-code')))
                 self.browser.find_element_by_id('captcha-popup-code').send_keys(text)
+
                 self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '#ncapcha-submit')))
                 self.browser.find_element_by_css_selector('#ncapcha-submit').click()
+                # Если кнопка доступна то кликаем чтобы начать проверку корректности капчи
+
+                # Иногда сайт может обрабатывать капчу 10+ секунд, поэтому ждем пока кнопка продолжить
+                # снова станет доступной, чтобы продолжить ввод капчи
                 self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '#ncapcha-submit')))
-                # Ждем когда кнопка продолжить снова прогрузится, чтобы понять что пришла новая капча
-                # Из-за лагов сайта она может грузится довольно долго
 
             # Когда капча решается успешно окно с капчей закрывается
             except (NoSuchElementException, ElementNotInteractableException, TimeoutException):
@@ -74,7 +77,10 @@ class Fssp:
 
 if __name__ == '__main__':
     session = Fssp()
-    data_debtors = read_excel('table_fssprus.xlsx')
+    excel = ProcessingExcel('table_fssprus.xlsx')
+
+    data_debtors = excel.read_excel()
+
 
 
 
