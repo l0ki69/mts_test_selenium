@@ -1,5 +1,6 @@
 import win32com.client
 from pathlib import *
+import json
 
 
 class Debtors:
@@ -12,18 +13,21 @@ class Debtors:
 
 class ProcessingExcel:
 
-    def __init__(self, name_table: str):
+    def __init__(self, website: str):
         """
         Create a COM object for working with tables
-        :param name_table: Data table name
+        :param website: name of the site for parsing
         """
-        self.name_table = name_table
+
+        with open('table_data.json', 'r', encoding='utf-8') as json_file:
+            data = json.load(json_file)
+
+        self.name_table = data[website]['file_input']
+        self.website = website
         self.excel = win32com.client.Dispatch('Excel.Application')
-        self.wb = self.excel.Workbooks.Open(Path.cwd() / name_table)
-        self.sheet = self.wb.ActiveSheet
 
     def __del__(self):
-        self.wb.Close()
+
         self.excel.Quit()
 
     def read_excel(self):
@@ -32,12 +36,14 @@ class ProcessingExcel:
         :return: List with data on potential debtors
         :rtype: list[Debtors]
         """
+        wb = self.excel.Workbooks.Open(Path.cwd() / self.name_table)
+        sheet = wb.ActiveSheet
 
         num_row: int = 1  # кол-во строк
         num_column: int = 1  # кол-во столбцов
         while True:  # Цикл узнает кол-во не пустых строк и столбцов
-            val_col = self.sheet.Cells(1, num_column).value
-            val_row = self.sheet.Cells(num_row, 1).value
+            val_col = sheet.Cells(1, num_column).value
+            val_row = sheet.Cells(num_row, 1).value
 
             if str(val_col) != 'None':
                 num_column += 1
@@ -62,7 +68,7 @@ class ProcessingExcel:
 
         counter: int = 0
         data_row = list()  # Временное хранилище данных по строкам
-        for cell in self.sheet.Range(table_range):
+        for cell in sheet.Range(table_range):
 
             if counter == 3 and num_column == 4:  # Есть ли столбец с датой рождения
                 date = str(cell).split(' ')[0]
@@ -81,5 +87,7 @@ class ProcessingExcel:
                                             date=data_row[3]))
                 counter = 0
                 data_row.clear()
+
+        wb.Close()
 
         return data_debtors

@@ -77,10 +77,8 @@ class Fssp:
 
 if __name__ == '__main__':
     session = Fssp()
-    excel = ProcessingExcel('table_fssprus.xlsx')
+    excel = ProcessingExcel('fssprus')
 
     data_debtors = excel.read_excel()
-
-
 
 
