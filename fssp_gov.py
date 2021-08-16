@@ -7,6 +7,7 @@ from selenium.common.exceptions import NoSuchElementException, \
 
 from captcha import read_captcha
 from excel_interaction import Debtors, ProcessingExcel
+import sys
 
 
 class Fssp:
@@ -14,9 +15,11 @@ class Fssp:
 
     def __init__(self):
         self.browser = webdriver.Firefox()
-        self.wait = WebDriverWait(self.browser, 10)
-
-        self.browser.implicitly_wait(10)
+        # Если сайт сильно лагает, рекомендация поставить wait = 10 - 15
+        # Если все хорошо, то для ускорения процесса можно сделать wait = 5
+        wait: int = 10
+        self.wait = WebDriverWait(self.browser, wait)
+        self.browser.implicitly_wait(wait)
         self._restart_session()
 
     def __del__(self):
@@ -26,19 +29,22 @@ class Fssp:
         """Restarts the session if something went wrong"""
 
         self.browser.get('http://fssprus.ru/')
+        try:
+            # Закрываем всплывающее окно
+            pop_up_window_button = self.wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.tingle-modal__close')))
+            pop_up_window_button.click()
 
-        # Закрываем всплывающее окно
-        pop_up_window_button = self.wait.until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.tingle-modal__close')))
-        pop_up_window_button.click()
+            # Ждем пока станет видна кнопка расширенного поиска и кликаем найти
+            self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '.btn-light')))
+            self.browser.find_element_by_css_selector('div.main-form__btn:nth-child(2) > button:nth-child(1)').click()
 
-        # Ждем пока станет видна кнопка расширенного поиска и кликаем найти
-        self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '.btn-light')))
-        self.browser.find_element_by_css_selector('div.main-form__btn:nth-child(2) > button:nth-child(1)').click()
+            # Ждем пока станет видно кнопку физ лицо и кликаем на нее
+            self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.s-3:nth-child(1) > label:nth-child(1)')))
+            self.browser.find_element_by_css_selector('div.s-3:nth-child(1) > label:nth-child(1)').click()
 
-        # Ждем пока станет видно кнопку физ лицо и кликаем на нее
-        self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.s-3:nth-child(1) > label:nth-child(1)')))
-        self.browser.find_element_by_css_selector('div.s-3:nth-child(1) > label:nth-child(1)').click()
+        except TimeoutException:
+            self._restart_session()
 
     def _introduces_captcha(self):
         """Solves captcha using Tesseract-ocr"""
@@ -93,59 +99,114 @@ class Fssp:
             """Gets the text of the HTML block"""
             return element.text
 
-        # Debt list
-        debts_data = list()
-
         for key in data_debtor.__dict__.keys():
-            input_form = self.browser.find_element_by_name(f"is[{key}]")
-            input_form.clear()
-            input_form.send_keys(data_debtor.__getattribute__(key))
+            try:
+                self.wait.until(EC.visibility_of_element_located((By.NAME, f"is[{key}]")))
+                input_form = self.browser.find_element_by_name(f"is[{key}]")
+                input_form.clear()
+                input_form.send_keys(data_debtor.__getattribute__(key))
+            except TimeoutException:
+                return False
 
         self.browser.find_element_by_id('btn-sbm').click()
 
         self._introduces_captcha()
 
         try:
-            res_table = self.browser.find_element_by_css_selector('div.results')
+            self.browser.find_element_by_css_selector('div.results')
         except NoSuchElementException:
             # Что пошло не так, начнем сначала
             self._restart_session()
             return False
 
-        # Если нет задолженностей
-        try:
-            res_table.find_element_by_css_selector('div.results-frame').find_element_by_css_selector('tbody')
-        except NoSuchElementException:
-            name: str = data_debtor.last_name + ' ' + data_debtor.first_name + ' ' \
-                        + data_debtor.patronymic + '\n' + data_debtor.date
-            debts_data.append((name, 'Нет задолженностей'))
+        pages: list = self._pagination_search()
+        num_pages: int = len(pages) - 1
+        additional_pages: bool = True  # Есть ли еще страница для обработки
+
+        while additional_pages:
+
+            self._introduces_captcha()
+
+            try:
+                res_table = self.browser.find_element_by_css_selector('div.results')
+            except NoSuchElementException:
+                # Что пошло не так, начнем сначала
+                continue
+
+            # Debt list
+            debts_data = list()
+
+            # Если нет задолженностей
+            try:
+                table = res_table.find_element_by_css_selector('div.results-frame')\
+                    .find_element_by_css_selector('tbody')
+            except NoSuchElementException:
+                name: str = data_debtor.last_name + ' ' + data_debtor.first_name + ' ' \
+                            + data_debtor.patronymic + '\n' + data_debtor.date
+                debts_data.append([name, 'Нет задолженностей'])
+                debts.append(debts_data)
+                return True
+
+            # Задолженности есть
+
+            # Получаем данные о задолженностях и регионах
+            debts_info = list(map(get_text, table.find_elements_by_tag_name('td')))
+            regions = list(map(get_text, table.find_elements_by_tag_name('h3')))
+
+            # Удаляем ячейки с названием региона
+            # debts_info.remove(regions[0:len(regions)])
+            for reg in regions:
+                debts_info.remove(reg)
+
+            # Удаляем элементы столбика Сервис
+            del debts_info[4::8]
+
+            # Теперь групируем данные о каждом ОТДЕЛЬНОМ исполнительном производстве
+            for index in range(0, len(debts_info) // 7):
+                temp_store: list = debts_info[index * 7:index * 7 + 7]
+
+                try:
+                    debts_data.append(temp_store)
+                except StaleElementReferenceException:
+                    continue
             debts.append(debts_data)
-            return True
 
-        # Задолженности есть
+            if num_pages > 0:
+                num_pages -= 1
+                pages = self._pagination_search()
+                pages[len(pages) - 1].click()
 
-        debts_info: list = self.browser.find_element_by_css_selector('div.results').find_element_by_css_selector(
-            'div.results-frame').find_element_by_css_selector('tbody').find_elements_by_tag_name('td')
+            else:
+                additional_pages = False
 
-        # Удаляем каждый информацию из столбика Сервис
-        del debts_info[5:len(debts_info):8]
-        debts_info.pop(0)  # Удаляем 0-й элемент с данными о республике
-
-        # Теперь групируем данные о каждом ОТДЕЛЬНОМ исполнительном производстве
-        for index in range(0, len(debts_info) // 7):
-            temp_stor: list = debts_info[index * 7:index * 7 + 7]
-            debts_data.append(tuple(map(get_text, temp_stor)))
-
-        debts.append(debts_data)
         return True
+
+    def _pagination_search(self):
+        """
+        Finds out if there are additional pages with debts
+
+        :return: Returns the current list of pages, if there are none, then returns an empty list
+        :rtype: list
+        """
+        # Проверка наличия доп страниц с долгами
+        try:
+            block_pages = self.browser.find_element_by_css_selector('div.pagination')
+            pages = block_pages.find_elements_by_tag_name('a')
+            return pages
+        except NoSuchElementException:
+            return []
 
 
 if __name__ == '__main__':
-    session = Fssp()
     excel = ProcessingExcel('fssprus')
 
     data_debtors = excel.read_excel()
-    debts = []
+    if not data_debtors:
+        sys.exit('Input data table does not exist')
+
+    session = Fssp()
+
+    debts = list()  # Stores already processed data on debtors
 
     counter: int = 0
     while counter != len(data_debtors):

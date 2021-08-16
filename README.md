@@ -1,6 +1,13 @@
 # mts_test_selenium
 ##
 Test task for RPA developer in MTS
+
+# Installation 
+> pip install -r requirements.txt
+
+Также необходима корректная версия [tesseract-ocr](https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-v5.0.0-alpha.20210506.exe)
+
+Для корректной работы библиотеки Selenium необходимо установить [geckdriver](https://github.com/mozilla/geckodriver/releases/download/v0.29.1/geckodriver-v0.29.1-win64.zip) в рабочую директорию.
 ## **Конфигурация** 
 
 ### Проект конфигурируется с помощью файла переменных окружений .env в рабочей директории.
@@ -11,6 +18,22 @@ Test task for RPA developer in MTS
 >
 >TESSERACT-OCR_DIR_LOCATION="C:\Program Files\Tesseract-OCR"
 
+
+## Тестовые файлы:
+
+### 
++ [Задание 1. Тестовая выборка](https://disk.yandex.ru/i/kl1kZeSXXlwfJg)
++ [Задание 1. Результат тестовой выборки](https://disk.yandex.ru/i/dGHynFAAC-G-3A)
+
+Файлы задания 1 и 2 должны располагаться в рабочей директории.
+Для изменения имени файлов ввода/вывода заданий, измените соответствующие поля в table_data.json.
+
+**Пример:**
+>`"file_input": "in_fssprus.xlsx",` 
+>
+>`"file_output": "out_fssrus.xlsx", `
+
+Тестовая выборка для 1-го задания обрабатывается порядка 120 секунд (в случай если сайт работает исправно). 
 # **Задание 1**
 ### **Дано:**
 + Язык разработки Python 3.6+

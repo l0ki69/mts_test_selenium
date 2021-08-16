@@ -36,7 +36,13 @@ class ProcessingExcel:
         :return: List with data on potential debtors
         :rtype: list[Debtors]
         """
-        wb = self.excel.Workbooks.Open(Path.cwd() / self.name_table)
+        # Проверка существует ли табилца
+        if Path(Path.cwd() / self.name_table).is_file():
+            # Да, подключаемся к ней
+            wb = self.excel.Workbooks.Open(Path.cwd() / self.name_table)
+        else:
+            return []
+
         sheet = wb.ActiveSheet
 
         num_row: int = 1  # кол-во строк
@@ -71,8 +77,11 @@ class ProcessingExcel:
         for cell in sheet.Range(table_range):
 
             if counter == 3 and num_column == 4:  # Есть ли столбец с датой рождения
-                date = str(cell).split(' ')[0]
-                data_row.append(date.split('-')[2] + '.' + date.split('-')[1] + '.' + date.split('-')[0])
+                if str(cell) == 'None':
+                    data_row.append('')
+                else:
+                    date = str(cell).split(' ')[0]
+                    data_row.append(date.split('-')[2] + '.' + date.split('-')[1] + '.' + date.split('-')[0])
             else:
                 data_row.append(str(cell))
 
@@ -100,9 +109,10 @@ class ProcessingExcel:
         Works for as for fssp, as for sudrf
 
         :param data: data to write
-        :type data: list[tuple]
+        :type data: list[list[str]]
         """
         name_table = self.data_json[self.website]['file_output']
+        pop_up_window = str(self.data_json[self.website]['pop-up_window'])
 
         # Проверка существует ли табилца
         if Path(Path.cwd() / name_table).is_file():
@@ -126,6 +136,12 @@ class ProcessingExcel:
         # Сдвиг по таблице
         shift_cell: int = 2
         for element in data:
+
+            if self.website == 'fssprus':
+                # Иногда добавляется текс из всплывающего окна, которое появляется при наведении на поле Должник
+                # Поэтому удаляем его
+                for elem in element:
+                    elem[0] = elem[0].replace(pop_up_window, '')
 
             if len(element[0]) > 2:
                 # Долги есть
