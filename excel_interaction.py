@@ -30,11 +30,20 @@ class ProcessingExcel:
 
         self.excel.Quit()
 
-    def read_excel(self):
+    def get_court(self) -> str:
+        """
+        Returns the name of the court
+        :return: Returns the name of the court if we are working with the site sudrf otherwise an empty string
+        """
+        if self.website == 'sudrf':
+            return self.data_json[self.website]['court']
+        else:
+            return ''
+
+    def read_excel(self) -> list:
         """
         Reads data from an excel file. Works for as for fssp, as for sudrf
         :return: List with data on potential debtors
-        :rtype: list[Debtors]
         """
         # Проверка существует ли табилца
         if Path(Path.cwd() / self.name_table).is_file():
@@ -112,7 +121,6 @@ class ProcessingExcel:
         :type data: list[list[str]]
         """
         name_table = self.data_json[self.website]['file_output']
-        pop_up_window = str(self.data_json[self.website]['pop-up_window'])
 
         # Проверка существует ли табилца
         if Path(Path.cwd() / name_table).is_file():
@@ -138,6 +146,7 @@ class ProcessingExcel:
         for element in data:
 
             if self.website == 'fssprus':
+                pop_up_window = str(self.data_json[self.website]['pop-up_window'])
                 # Иногда добавляется текс из всплывающего окна, которое появляется при наведении на поле Должник
                 # Поэтому удаляем его
                 for elem in element:
