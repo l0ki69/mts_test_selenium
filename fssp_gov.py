@@ -2,12 +2,13 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException, \
-    ElementNotInteractableException, StaleElementReferenceException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException,\
+                                    StaleElementReferenceException, TimeoutException, InvalidElementStateException
 
 from captcha import read_captcha
 from excel_interaction import Debtors, ProcessingExcel
 import sys
+import urllib.request
 
 
 class Fssp:
@@ -59,13 +60,9 @@ class Fssp:
         while True:
             try:
                 # Делаем скриншот участка с капчей
-                img_save = self.browser.find_element_by_id('capchaVisual').screenshot('img.png')
-
-                if not img_save:  # Если скриншот сделать нее удалось
-                    self.browser.find_element_by_css_selector('#ncapcha-submit').click()
-                    continue
-
-                text = read_captcha()
+                link_img = self.browser.find_element_by_id('capchaVisual').get_attribute('src')
+                img_save: tuple = urllib.request.urlretrieve(link_img)
+                text = read_captcha(img_save[0])
                 # ВВодим капчу
                 self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '#captcha-popup-code')))
                 self.browser.find_element_by_id('captcha-popup-code').send_keys(text)
@@ -105,7 +102,7 @@ class Fssp:
                 input_form = self.browser.find_element_by_name(f"is[{key}]")
                 input_form.clear()
                 input_form.send_keys(data_debtor.__getattribute__(key))
-            except TimeoutException:
+            except (TimeoutException, InvalidElementStateException):
                 return False
 
         self.browser.find_element_by_id('btn-sbm').click()
