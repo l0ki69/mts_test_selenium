@@ -3,7 +3,7 @@
 Test task for RPA developer in MTS
 
 # Installation 
-> pip install -r requirements.txt
+> `pip install -r requirements.txt`
 
 Также необходима корректная версия [tesseract-ocr](https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-v5.0.0-alpha.20210506.exe)
 
@@ -23,17 +23,31 @@ Test task for RPA developer in MTS
 
 ### 
 + [Задание 1. Тестовая выборка](https://disk.yandex.ru/i/kl1kZeSXXlwfJg)
-+ [Задание 1. Результат тестовой выборки](https://disk.yandex.ru/i/dGHynFAAC-G-3A)
++ [Задание 1. Результат обработки](https://disk.yandex.ru/i/dGHynFAAC-G-3A)
++ [Задание 2. Тестовая выборка](https://disk.yandex.ru/d/_8aAYBv9WTs9wg)
++ [Задание 2. Результат обработки](https://disk.yandex.ru/i/3ce3-1LLFWrKCA)
 
 Файлы задания 1 и 2 должны располагаться в рабочей директории.
 Для изменения имени файлов ввода/вывода заданий, измените соответствующие поля в table_data.json.
 
 **Пример:**
->`"file_input": "in_fssprus.xlsx",` 
+
+>` "file_input": "in_fssprus.xlsx",` 
 >
 >`"file_output": "out_fssrus.xlsx", `
 
 Тестовая выборка для 1-го задания обрабатывается порядка 120 секунд (в случай если сайт работает исправно). 
+
+Тестовая выборка для 2-го задания обрабатывается порядка 40 секунд (примерно 6 секунд на 1 человека)
+
+## Notes
+### 
+**Задание 2:** Для изменения суда в котором будет происходить поиск измените поле "court" в файле table_data.json
+
+**Пример:**
+
+`"court": "235 гарнизонный военный суд"` 
+
 # **Задание 1**
 ### **Дано:**
 + Язык разработки Python 3.6+

@@ -81,7 +81,7 @@ class Fssp:
             except StaleElementReferenceException:
                 continue
 
-    def get_data(self, data_debtor: Debtors):
+    def get_data(self, data_debtor: Debtors) -> bool:
         """
         Unloads data about open enforcement proceedings, if any
 
@@ -89,7 +89,6 @@ class Fssp:
 
         :return: True - If you managed to upload data about the debtor
                  False - If something went wrong and it's worth starting over
-        :rtype: bool
         """
 
         def get_text(element):
@@ -178,12 +177,11 @@ class Fssp:
 
         return True
 
-    def _pagination_search(self):
+    def _pagination_search(self) -> list:
         """
         Finds out if there are additional pages with debts
 
         :return: Returns the current list of pages, if there are none, then returns an empty list
-        :rtype: list
         """
         # Проверка наличия доп страниц с долгами
         try:
